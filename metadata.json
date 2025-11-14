@@ -1,0 +1,5 @@
+{
+  "name": "AI Travel Planner11/14",
+  "description": "An intelligent travel planner that generates personalized itineraries using AI. Users can input their destination, duration, budget, and interests to receive a detailed daily plan, including sightseeing, dining, and transportation. The app also allows for simulated booking of guides and vehicles to create a complete trip plan.",
+  "requestFramePermissions": []
+}
