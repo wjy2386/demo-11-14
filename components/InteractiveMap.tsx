@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Activity } from '../types';
+import { useLanguage } from '../contexts/LanguageContext';
 
 declare const L: any;
 
@@ -10,6 +11,7 @@ interface InteractiveMapProps {
 const InteractiveMap: React.FC<InteractiveMapProps> = ({ activities }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (mapContainerRef.current && !mapRef.current) {
@@ -72,7 +74,7 @@ const InteractiveMap: React.FC<InteractiveMapProps> = ({ activities }) => {
   if (validActivities.length === 0) {
       return (
         <div className="w-full h-full rounded-lg shadow-inner bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center text-center p-4" style={{ minHeight: '400px' }}>
-            <p className="text-slate-500 dark:text-slate-400">当地活动没有可在地图上显示的位置。</p>
+            <p className="text-slate-500 dark:text-slate-400">{t('detail.mapNoLocation')}</p>
         </div>
       );
   }

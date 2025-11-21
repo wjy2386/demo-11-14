@@ -2,6 +2,7 @@ import React from 'react';
 import { Service, BookedServices } from '../types';
 import LoadingSpinner from './common/LoadingSpinner';
 import { CheckCircleIcon } from './common/icons';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface BookingPageProps {
   guides: Service[];
@@ -12,7 +13,7 @@ interface BookingPageProps {
   onFinalize: () => void;
 }
 
-const ServiceCard: React.FC<{ service: Service; isBooked: boolean; onBook: (service: Service) => void; }> = ({ service, isBooked, onBook }) => {
+const ServiceCard: React.FC<{ service: Service; isBooked: boolean; onBook: (service: Service) => void; t: any }> = ({ service, isBooked, onBook, t }) => {
     return (
         <div className={`rounded-lg shadow-lg overflow-hidden bg-white dark:bg-slate-800 border-2 ${isBooked ? 'border-cyan-500' : 'border-transparent'}`}>
             <img src={service.imageUrl} alt={service.name} className="w-full h-48 object-cover" />
@@ -20,7 +21,7 @@ const ServiceCard: React.FC<{ service: Service; isBooked: boolean; onBook: (serv
                 <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">{service.name}</h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{service.description}</p>
                 <div className="flex justify-between items-center mt-4">
-                    <p className="text-lg font-semibold text-cyan-600 dark:text-cyan-400">¥{service.pricePerDay}<span className="text-sm font-normal text-slate-500 dark:text-slate-400">/天</span></p>
+                    <p className="text-lg font-semibold text-cyan-600 dark:text-cyan-400">¥{service.pricePerDay}<span className="text-sm font-normal text-slate-500 dark:text-slate-400">{t('booking.perDay')}</span></p>
                     <button
                         onClick={() => onBook(service)}
                         disabled={isBooked}
@@ -30,7 +31,7 @@ const ServiceCard: React.FC<{ service: Service; isBooked: boolean; onBook: (serv
                             : 'bg-cyan-500 text-white hover:bg-cyan-600'
                         }`}
                     >
-                        {isBooked ? <><CheckCircleIcon className="h-4 w-4"/> 已预订</> : '立即预订'}
+                        {isBooked ? <><CheckCircleIcon className="h-4 w-4"/> {t('booking.booked')}</> : t('booking.bookNow')}
                     </button>
                 </div>
             </div>
@@ -39,31 +40,33 @@ const ServiceCard: React.FC<{ service: Service; isBooked: boolean; onBook: (serv
 };
 
 const BookingPage: React.FC<BookingPageProps> = ({ guides, vehicles, bookedServices, isLoading, onBookService, onFinalize }) => {
+  const { t } = useLanguage();
+
   if (isLoading) {
-    return <LoadingSpinner message="正在寻找最佳的本地导游和车辆..." />;
+    return <LoadingSpinner message={t('loading.searching')} />;
   }
   
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="text-center mb-10">
-        <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white">升级您的旅程</h2>
-        <p className="mt-2 text-slate-600 dark:text-slate-400">预订当地导游或车辆，享受难忘的体验。</p>
+        <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white">{t('booking.title')}</h2>
+        <p className="mt-2 text-slate-600 dark:text-slate-400">{t('booking.subtitle')}</p>
       </div>
 
       <div className="space-y-12">
         <div>
-          <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200 mb-6">当地导游</h3>
+          <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200 mb-6">{t('booking.guides')}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {guides.map(guide => (
-              <ServiceCard key={guide.id} service={guide} isBooked={bookedServices.guide?.id === guide.id} onBook={onBookService} />
+              <ServiceCard key={guide.id} service={guide} isBooked={bookedServices.guide?.id === guide.id} onBook={onBookService} t={t} />
             ))}
           </div>
         </div>
         <div>
-          <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200 mb-6">车辆租赁</h3>
+          <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200 mb-6">{t('booking.vehicles')}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {vehicles.map(vehicle => (
-              <ServiceCard key={vehicle.id} service={vehicle} isBooked={bookedServices.vehicle?.id === vehicle.id} onBook={onBookService} />
+              <ServiceCard key={vehicle.id} service={vehicle} isBooked={bookedServices.vehicle?.id === vehicle.id} onBook={onBookService} t={t} />
             ))}
           </div>
         </div>
@@ -74,7 +77,7 @@ const BookingPage: React.FC<BookingPageProps> = ({ guides, vehicles, bookedServi
           onClick={onFinalize}
           className="px-12 py-4 text-lg font-semibold text-white bg-green-600 rounded-lg shadow-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-transform transform hover:scale-105"
         >
-          完成我的旅行计划
+          {t('booking.finalize')}
         </button>
       </div>
     </div>

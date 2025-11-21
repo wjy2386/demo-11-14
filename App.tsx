@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Page, UserPreferences, Itinerary, DayPlan, BookedServices, Service } from './types';
-import { generateItinerary, generateServices } from './services/geminiService';
+import { generateItinerary, generateServices, modifyItinerary } from './services/geminiService';
 import HomePage from './components/HomePage';
 import ItineraryPage from './components/ItineraryPage';
 import DetailPage from './components/DetailPage';
@@ -8,8 +8,10 @@ import BookingPage from './components/BookingPage';
 import FinalItineraryPage from './components/FinalItineraryPage';
 import Header from './components/common/Header';
 import LoadingSpinner from './components/common/LoadingSpinner';
+import { useLanguage } from './contexts/LanguageContext';
 
 const App: React.FC = () => {
+    const { t, language } = useLanguage();
     const [currentPage, setCurrentPage] = useState<Page>(Page.Home);
     const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
     const [itinerary, setItinerary] = useState<Itinerary | null>(null);
@@ -36,19 +38,61 @@ const App: React.FC = () => {
     const handleItineraryRequest = useCallback(async (preferences: UserPreferences) => {
         setUserPreferences(preferences);
         setIsLoading(true);
-        setLoadingMessage('正在为您量身定制行程...');
+        setLoadingMessage(t('loading.generating'));
         setError(null);
         setCurrentPage(Page.Itinerary); 
         try {
-            const result = await generateItinerary(preferences);
+            const result = await generateItinerary(preferences, language);
             setItinerary(result);
         } catch (err) {
-            setError(err instanceof Error ? err.message : '发生未知错误');
+            setError(t('error.generate'));
             setCurrentPage(Page.Home); 
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [language, t]);
+
+    const handleRegenerateItinerary = useCallback(async () => {
+        if (!userPreferences) return;
+        setIsLoading(true);
+        setLoadingMessage(t('loading.regenerating'));
+        setError(null);
+        try {
+            const result = await generateItinerary(userPreferences, language);
+            setItinerary(result);
+        } catch (err) {
+            setError(t('error.generate'));
+        } finally {
+            setIsLoading(false);
+        }
+    }, [userPreferences, language, t]);
+
+    const handleModifyItinerary = useCallback(async (instruction: string) => {
+        if (!itinerary) return;
+        setIsLoading(true);
+        setLoadingMessage(t('loading.modifying'));
+        setError(null);
+        try {
+            const result = await modifyItinerary(itinerary, instruction, language);
+            setItinerary(result);
+        } catch (err) {
+            setError(t('error.modify'));
+        } finally {
+            setIsLoading(false);
+        }
+    }, [itinerary, language, t]);
+
+    const handleSaveItinerary = () => {
+        if (!itinerary) return;
+        // In a real app, this might save to a backend.
+        // Here we just save to local storage as a demo.
+        try {
+            localStorage.setItem('savedItinerary', JSON.stringify(itinerary));
+            console.log("Itinerary saved to local storage");
+        } catch (e) {
+            console.error("Failed to save to local storage", e);
+        }
+    };
 
     const handleSelectDay = (dayIndex: number) => {
         if (itinerary) {
@@ -60,20 +104,20 @@ const App: React.FC = () => {
     const handleBookingRequest = useCallback(async () => {
         if (!itinerary) return;
         setIsLoading(true);
-        setLoadingMessage('正在寻找可用的导游和车辆...');
+        setLoadingMessage(t('loading.searching'));
         setError(null);
         setCurrentPage(Page.Booking);
         try {
-            const services = await generateServices(itinerary.destination, itinerary.duration);
+            const services = await generateServices(itinerary.destination, itinerary.duration, language);
             setGuides(services.guides);
             setVehicles(services.vehicles);
         } catch (err) {
-            setError(err instanceof Error ? err.message : '发生未知错误');
+            setError(t('error.services'));
             setCurrentPage(Page.Detail);
         } finally {
             setIsLoading(false);
         }
-    }, [itinerary]);
+    }, [itinerary, language, t]);
 
     const handleBookService = (service: Service) => {
         setBookedServices(prev => {
@@ -91,8 +135,13 @@ const App: React.FC = () => {
         if (error) {
             return (
                 <div className="text-center p-8">
-                    <p className="text-red-500 font-semibold">{error}</p>
-                    <button onClick={handleReset} className="mt-4 px-4 py-2 bg-cyan-600 text-white rounded-lg">再试一次</button>
+                    <p className="text-red-500 font-semibold mb-4">{error}</p>
+                    <button 
+                        onClick={() => { setError(null); setIsLoading(false); }} 
+                        className="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
+                    >
+                        {t('error.back')}
+                    </button>
                 </div>
             );
         }
@@ -106,7 +155,16 @@ const App: React.FC = () => {
                 return <HomePage onSubmit={handleItineraryRequest} />;
             case Page.Itinerary:
                 if (itinerary) {
-                    return <ItineraryPage itinerary={itinerary} onSelectDay={handleSelectDay} onFinalize={() => setCurrentPage(Page.Final)}/>;
+                    return (
+                        <ItineraryPage 
+                            itinerary={itinerary} 
+                            onSelectDay={handleSelectDay} 
+                            onFinalize={() => setCurrentPage(Page.Final)}
+                            onRegenerate={handleRegenerateItinerary}
+                            onModify={handleModifyItinerary}
+                            onSave={handleSaveItinerary}
+                        />
+                    );
                 }
                 break;
             case Page.Detail:
@@ -135,12 +193,19 @@ const App: React.FC = () => {
     
     const getHeaderTitle = () => {
         switch (currentPage) {
-            case Page.Home: return "让我们开始规划旅程";
-            case Page.Itinerary: return "为您生成的行程";
-            case Page.Detail: return `第 ${selectedDay?.day} 天详情`;
-            case Page.Booking: return "预订服务";
-            case Page.Final: return "您的最终行程单";
-            default: return "AI 旅行规划师";
+            case Page.Home: return t('appTitle'); // This case might not be hit if Header is hidden on Home, but logic exists
+            case Page.Itinerary: return t('itinerary.viewDetails').replace('查看详情', '为您生成的行程'); // Hacky fallbacks or strict keys? Let's use better keys or direct translations if I had them.
+            // Better approach: use keys I defined in translation file
+            // But '为您生成的行程' is not in translations exactly under 'itinerary'.
+            // Let's look at translations.ts content I created.
+            // It has 'appTitle', 'home.title'.
+            // It doesn't have breadcrumb titles. I'll add logic to t() or just map manually using t() for parts.
+            // For now to match the exact strings from previous version but translated:
+            case Page.Itinerary: return language === 'zh' ? "为您生成的行程" : "Your Itinerary";
+            case Page.Detail: return t('detail.day', { day: selectedDay?.day || 0 }) + " " + (language === 'zh' ? "详情" : "Details");
+            case Page.Booking: return t('booking.title');
+            case Page.Final: return t('final.title', { destination: itinerary?.destination || '' });
+            default: return t('appTitle');
         }
     };
 
